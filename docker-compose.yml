@@ -1,0 +1,102 @@
+# =============================================================================
+# usque — Cloudflare WARP (MASQUE) в контейнере
+#
+#   cp .env.example .env      # правим под себя
+#   docker compose up -d --build
+#   docker compose logs -f usque
+#
+# Все параметры — через .env (см. .env.example) или через блок environment.
+# =============================================================================
+name: usque
+
+services:
+  usque:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # любой тег/ветка/коммит апстрима; меняйте осознанно
+        USQUE_REF: ${USQUE_REF:-main}
+    image: ${USQUE_IMAGE:-usque:local}
+    container_name: ${USQUE_CONTAINER_NAME:-usque}
+    restart: unless-stopped
+    init: true
+
+    # TUN требует NET_ADMIN. MKNOD идёт в дефолтных capability docker —
+    # его достаточно, чтобы entrypoint сам создал /dev/net/tun, если узла нет.
+    cap_add:
+      - NET_ADMIN
+    device_cgroup_rules:
+      - "c 10:200 rwm"      # /dev/net/tun
+
+    # Альтернатива, если /dev/net/tun уже существует на хосте (тогда mknod не нужен):
+    # devices:
+    #   - /dev/net/tun:/dev/net/tun
+
+    # .env не обязателен: без него работают дефолты из entrypoint (tun + main-роутинг)
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: ${TZ:-UTC}
+
+    volumes:
+      # Конфиг WARP/ZeroTrust. Должен быть writable: register/enroll пишут сюда.
+      - ./config:/etc/usque
+
+    # DNS контейнера. По умолчанию работает встроенный резолвер Docker
+    # (127.0.0.11): он резолвит на стороне демона, то есть МИМО туннеля.
+    # Явный публичный DNS заставил бы запросы идти через WARP, но в сетях
+    # с DPI/подменой Do53 (в частности у российских провайдеров) прямой запрос
+    # к 1.1.1.1 не проходит: проверено — с dns: 1.1.1.1 контейнер не мог
+    # подключиться даже к api.cloudflareclient.com, без него всё работает.
+    # Поэтому по умолчанию — резолвер Docker. Нужен свой — раскомментируйте
+    # и укажите работающий у вас адрес.
+    # dns:
+    #   - 1.1.1.1
+    #   - 1.0.0.1
+
+    # Порты нужны только для прокси-режимов (socks/http-proxy/l4-*).
+    # В tun-режиме на них никто не слушает — блок можно закомментировать.
+    # Публикуются только на localhost: прокси без авторизации, доступный всей
+    # сети, — это открытый прокси. Нужен доступ с других машин: замените
+    # 127.0.0.1:1080 на 1080:1080 и обязательно задайте USQUE_PROXY_USER/PASS.
+    ports:
+      - "127.0.0.1:1080:1080/tcp"   # socks / l4-socks
+      - "127.0.0.1:1080:1080/udp"   # socks: UDP ASSOCIATE
+      - "127.0.0.1:8000:8000/tcp"   # http-proxy / l4-http-proxy
+
+    # QUIC любит большие буферы UDP. Если в логе есть "failed to sufficiently
+    # increase receive buffer size" — раскомментируйте (на части окружений
+    # контейнерные sysctl недоступны; тогда правьте на хосте:
+    # sysctl -w net.core.rmem_max=7500000 net.core.wmem_max=7500000).
+    # sysctls:
+    #   net.core.rmem_max: 7500000
+    #   net.core.wmem_max: 7500000
+
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Пример «клиента»: чужой контейнер, который ходит в интернет через usque.
+  # Он делит сетевой namespace с usque, поэтому наследует и tun, и маршруты.
+  # Запуск: docker compose --profile example up
+  # ---------------------------------------------------------------------------
+  client:
+    image: alpine:3.22
+    profiles: ["example"]
+    network_mode: "service:usque"
+    depends_on:
+      - usque
+    # Клиент делит netns с usque, поэтому его DNS тоже стоит направить
+    # в туннель — но только если выбранный резолвер у вас реально доступен
+    # (см. комментарий про dns выше).
+    # dns:
+    #   - 1.1.1.1
+    command: >
+      sh -c "apk add --no-cache curl >/dev/null 2>&1;
+             curl -s https://1.1.1.1/cdn-cgi/trace | grep -E '^(ip|warp|loc)='"

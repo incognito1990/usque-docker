@@ -1,0 +1,25 @@
+{
+  "_readme": [
+    "Шаблон конфига usque. Обычно НЕ нужен: с USQUE_REGISTER=auto контейнер сам",
+    "зарегистрирует устройство WARP и заполнит этот файл.",
+    "Для Zero Trust: USQUE_REGISTER=auto + USQUE_JWT=<team-token>.",
+    "Ключи, начинающиеся с _ (как этот), usque игнорирует — это комментарии.",
+    "Важно: команды register/enroll перезаписывают файл целиком, комментарии пропадут.",
+    "Порядок полей: private_key (base64 ECDSA P-256), endpoint_* (IP эндпоинта),",
+    "endpoint_pub_key (PEM, пиннинг сертификата), id + access_token (аккаунт),",
+    "ipv4/ipv6 — адреса, выданные устройству внутри туннеля."
+  ],
+
+  "private_key": "",
+  "endpoint_v4": "162.159.198.2",
+  "endpoint_v6": "2606:4700:100::a29f:c601",
+  "endpoint_h2_v4": "162.159.198.2",
+  "endpoint_h2_v6": "",
+  "endpoint_pub_key": "",
+
+  "id": "",
+  "access_token": "",
+
+  "ipv4": "",
+  "ipv6": ""
+}

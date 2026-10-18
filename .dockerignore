@@ -1,0 +1,15 @@
+# Каталог с конфигами монтируется томом — в образ он попадать не должен:
+# в config.json лежат приватный ключ и access_token.
+config/*.json
+config/*.bak*
+.env
+
+# Исходники апстрима (Dockerfile клонирует их сам внутри сборки)
+src/
+
+.git
+.gitignore
+docker-compose*.yml
+Makefile
+README.md
+*.md

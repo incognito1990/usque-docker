@@ -1,0 +1,39 @@
+{
+  "_readme": [
+    "Шаблон конфига для Cloudflare Zero Trust.",
+    "",
+    "Способ 1 — автоматически (рекомендуется, руками ничего заполнять не нужно):",
+    "  в .env задайте USQUE_JWT=<team/service token> и USQUE_REGISTER=auto,",
+    "  поднимите контейнер. SNI zt-masque.cloudflareclient.com подставится сам,",
+    "  а устройство появится в вашей организации.",
+    "",
+    "Способ 2 — вручную (апстрим рекомендует именно такой порядок):",
+    "  1) получите обычный конфиг: USQUE_REGISTER=force в .env и один запуск",
+    "     контейнера — появится config.json с валидными private_key,",
+    "     endpoint_pub_key, endpoint_v4/v6, ipv4, ipv6;",
+    "  2) скопируйте его в config.json и замените ТОЛЬКО два поля:",
+    "     id и access_token (id устройства и токен доступа из Zero Trust);",
+    "     поле license при Zero Trust пустое — это нормально;",
+    "  3) docker compose run --rm usque   c USQUE_MODE=enroll — enroll",
+    "     обновит ключ и адреса под вашу организацию.",
+    "",
+    "Где взять id и access_token: их можно достать из /var/lib/cloudflare-warp/reg.json",
+    "официального клиента WARP на Linux либо из списка устройств в панели Zero Trust.",
+    "",
+    "Ключи, начинающиеся с _, usque игнорирует — это комментарии.",
+    "register/enroll перезаписывают файл целиком, комментарии пропадут."
+  ],
+
+  "private_key": "",
+  "endpoint_v4": "162.159.198.1",
+  "endpoint_v6": "2606:4700:103::",
+  "endpoint_h2_v4": "162.159.198.2",
+  "endpoint_h2_v6": "",
+  "endpoint_pub_key": "",
+
+  "id": "",
+  "access_token": "",
+
+  "ipv4": "",
+  "ipv6": ""
+}

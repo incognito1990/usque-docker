@@ -1,0 +1,12 @@
+# Секреты: приватный ключ устройства и access_token. Никогда не коммитить.
+config/config.json
+config/*.bak*
+config/.zerotrust
+
+# Локальные настройки запуска (в репе — только .env.example)
+.env
+
+# Служебное
+*.log
+/tmp/
+tests/*.local.sh
